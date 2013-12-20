@@ -42,55 +42,6 @@ def print_num(min)
     min.to_s.reverse.gsub(/(\d{3})(?=\d)/, '\\1,').reverse
 end
 
-def gen_report(data,title,is_vendor = nil)
-    csv_dat = ''
-    tab = '    '
-    buffer = 20
-    print "\n"
-    puts "-----------------"
-    puts "#{title} Totals:"
-    puts "-----------------"
-
-    print "#{tab}"
-    [ "Voice", "Seconds" ].each do |slot|
-        print "#{slot}"
-        (buffer-slot.length).times { print ' ' }
-    end
-
-    puts
-    45.times { print '-' }
-    puts
-
-    if is_vendor
-        $vendors.keys.each do |vendor|
-            $types.each do |type|
-                seconds = data[type][vendor].to_i
-                seconds = seconds / 1000
-                print "#{tab}#{vendor}/#{type}"
-                (buffer-vendor.length).times { print ' '}
-                puts print_num seconds
-                csv_dat = "#{title},#{vendor}/#{type},#{seconds}"
-            end
-        end     
-    else
-        data.each do |voice,seconds|
-            ## Skip vendors
-            next if $vendors.keys.each.include?(voice) 
-
-            seconds = seconds / 1000
-            voice = "Total #{title}" if voice =~ /cdr/
-            print "#{tab}#{voice}"
-            (buffer-voice.length).times { print ' ' }
-            puts print_num seconds
-
-            #CSV
-            csv_dat += "#{title},#{voice},#{seconds}\n"
-        end
-    end
-
-    return csv_dat
-
-end
 
 OptionParser.new do |opts|
     opts.banner = "Usage: "
@@ -130,7 +81,7 @@ OptionParser.new do |opts|
     opts.parse!
 end
 
-## Cleanup output file
+## Cleanup output file. Probably a better way to do this.
 begin
     File.truncate($config[:output],0)
 rescue
