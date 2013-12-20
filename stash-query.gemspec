@@ -1,10 +1,10 @@
 Gem::Specification.new do |s|
-  s.name        = 'es-query'
+  s.name        = 'stash-query'
   s.version     = '0.0.1'
   s.date        = '2013-12-05'
-  s.summary     = "Gem for querying Logstash and running CDR reports"
+  s.summary     = "Gem for querying Logstash and exporting the results"
   s.authors     = ["Robby Dyer"]
-  s.email       = 'ops@tropo.com'
+  s.email       = 'robby.dyer@gmail.com'
   s.files       = Dir[ "bin/*"] + Dir["etc/*"]
   s.executables <<  "es-query"
   s.add_runtime_dependency 'elasticsearch', '>=0.4.1'
