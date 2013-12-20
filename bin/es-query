@@ -9,17 +9,16 @@ require 'curb'
 
 ############ CONFIG ###########
 $config = {}
-$config[:host] = "ls2-es-lb.int.tropo.com"
+$config[:host] = "localhost"
 $config[:port] = "9200"
+$config[:index_prefix] = "logstash-"
 $config[:scroll_size] = 10  ## Number of hits returned per scroll request. Not sure what to use here...
 $config[:scroll_time] = '30m'   
 $config[:report] = nil
 $debug = nil
-$types = [ "Asr", "Tts" ]
 $flush_buffer = 1000 ## Number of log lines to flush to file at
 $new_transport = true
 
-$vendors = JSON.parse(IO.read(File.expand_path("../../etc/voices.json", __FILE__)))
 ##################################
 
 def flush_to_file(hit_list)
@@ -97,6 +96,7 @@ OptionParser.new do |opts|
     opts.banner = "Usage: "
     opts.on('-c','--connect_host [HOST]', "Logstash host to run query on (defaults to: #{$config[:host]})") { |v| $config[:host] = v unless v.empty? or v.nil? }
     opts.on('-p','--port [PORT]', "Logstash port (defaults to: #{$config[:port]})") { |v| $config[:port] = v unless v.empty? or v.nil? }
+    opts.on('-i','--index-prefix [PREFIX]', "Index name prefix. Defaults to 'logstash-'") { |v| $config[:index_prefix] = v unless v.empty? or v.nil? }
     opts.on('-w', '--write [FILE]', 'Write output file location (defaults to nil)') { |v| $config[:output] = v }
     opts.on('-r', '--report', 'Generate Asr/Tts report on CDR data') { |v| $config[:report] = true }
     opts.on('-d', '--debug', 'Debug mode') { |v| $debug = true }
@@ -185,8 +185,7 @@ if $config[:start] and $config[:end]
     (start_date..end_date).map do |day| 
         day = day.strftime('%Y.%m.%d')
         puts "DAY: #{day}" if $debug
-        indexes << "logstash-cdr-#{day}"
-        indexes << "logstash-#{day}"
+        indexes << "#{$config[:index_prefix]}#{day}"
     end
 else
     puts "You have not specified a start and/or end timestamp for your query"
@@ -277,144 +276,5 @@ if $config[:output]
     end
 end
 
-
-if $config[:tags] =~ /cdr/ and $config[:output]
-    if $config[:report].nil?
-        puts "I noticed you are querying CDR data. Would you like to run Asr/Tts usage report? (y/n)"
-        ans = gets
-        exit unless ans.downcase =~ /y/
-    end
-    puts "Analyzing CDR logs..."    
-    totals = Hash.new
-    total = 0
-    hits = Hash.new
-    $types.each do |type|
-        hits[type] = Hash.new
-        $vendors.keys.each do |vendor|
-            hits[type][vendor] = Hash.new
-            hits[type][vendor][:total] = 0        
-            hits[type][vendor][:list] = Array.new        
-            totals[type] = Hash.new
-            totals[type][vendor] = 0
-        end
-    end
-
-    IO.foreach($config[:output]) do |line|
-        total += 1
-        # Skip empty stuff
-        next if line == "" or line.empty? or line =~ /^(\s)*$/
-
-        this_call = {}
-
-        # Get the CDR JSON
-        line = line.partition('text={"call":').last
-        line = line[0..-3] if line[-1] == ']'
-        line = line.gsub('\s','/')
-
-        ## Special checks for truncated CDR's
-        if line[-1] != '}'
-            next if line == "" or line.empty? or line =~ /^(\s)*$/
-            #rewind until we hit ',{'
-            line = line.reverse.partition('{,}').last.reverse
-            line = line + '}]}'
-        end
-
-        next unless line[-1] == '}'
-
-        begin
-            dat = JSON.parse(line)
-        rescue
-            next
-        end
-
-        # Parse the json, store values
-        $types.each do |type|
-            totals[type] = Hash.new if ! totals[type]
-            $vendors.keys.each do |vendor|
-                totals[type][vendor] = 0 if ! totals[type][vendor]
-                begin
-                    hits[type][vendor][:list].clear 
-                rescue
-                    hits[type][vendor][:list] = Array.new
-                end
-            end
-            this_call[type] = Hash.new
-
-            if dat[type].is_a? Array
-                dat[type].each do |call|
-                    name = call['ResourceName'].nil? ? "WHAT" : call['ResourceName']
-                    name = call['ResourceName'].empty? ? "EMPTY" : call['ResourceName']
-                    name.downcase!
-                    this_call[type][name] = call['Duration'].to_i
-                    this_call[:call_id] = dat['CallID']
-                    this_call[:session_id] = dat['SessionID']
-
-                    ## Check for multiple vendor voices per call
-                    $vendors.keys.each do |vendor|
-                        if $vendors[vendor]['voices'].include?(name) and ! hits[type][vendor][:list].include?(name)
-                            hits[type][vendor][:list] << name
-                        end
-                    end
-                end
-            end
-
-            ## Add this call to the totals
-            this_call[type].keys.each do |name|
-                if ! totals[type][name] or totals[type][name].nil?
-                    totals[type][name] = this_call[type][name]
-                else
-                    totals[type][name] += this_call[type][name]
-                end
-            end
- 
-            ## Print data about multi-voice calls
-            $vendors.keys.each do |vendor|
-                voices = Array.new
-                durations = Array.new
-                if hits[type][vendor][:list].length > 1
-                    hits[type][vendor][:total] += 1 
-                    
-                    ## Print callID, Voices/durations
-                    this_call[type].keys.each do |voice_name|
-                        voices << "#{voice_name}(#{this_call[type][voice_name]})" if $vendors[vendor]['voices'].include?(voice_name)
-                        durations << this_call[type][voice_name] if $vendors[vendor]['voices'].include?(voice_name)
-                    end
-                    puts "#{type.upcase} CallID:#{this_call[:call_id]}, SessionID:#{this_call[:session_id]}, Vendor:#{vendor}, Voices: #{voices.join(', ')}" unless voices.empty? or ! $debug
-            
-                    ## vendor total calculations
-                    puts "MAX:#{durations.max}" if $debug
-                    totals[type][vendor] += durations.max.to_i
-
-                else
-                    this_call[type].keys.each do |name|
-                        totals[type][vendor] += this_call[type][name] if $vendors[vendor]['voices'].include?(name)
-                    end
-                end
-            end
-
-        end #END types
-        
-    end #END each line
-    
-    puts
-    puts
-
-    $vendors.keys.each do |vendor|
-        $types.each do |type|
-            puts "Number of multi voice hits for #{vendor}, type #{type}: #{hits[type][vendor][:total]}"
-        end
-    end
-
-    puts
-    csv_dat = "Type,Voice,Seconds\n"
-
-    $types.each do |type|
-        csv_dat += gen_report(totals[type],type) if totals[type]
-    end
-
-    csv_dat += gen_report(totals,'Vendor',true)
-end
-
-puts csv_dat if $debug
 
 
