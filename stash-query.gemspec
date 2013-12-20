@@ -5,8 +5,8 @@ Gem::Specification.new do |s|
   s.summary     = "Gem for querying Logstash and exporting the results"
   s.authors     = ["Robby Dyer"]
   s.email       = 'robby.dyer@gmail.com'
-  s.files       = Dir[ "bin/*"] + Dir["etc/*"]
-  s.executables <<  "es-query"
+  s.files       = Dir[ "bin/*"]
+  s.executables <<  "stash-query"
   s.add_runtime_dependency 'elasticsearch', '>=0.4.1'
   s.add_runtime_dependency 'curb', '>= 0.8.5'
   s.add_runtime_dependency 'progress_bar'
