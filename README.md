@@ -1,7 +1,7 @@
 stash-query
 ===========
 
-A CLI Tool for Querying Logstash and Exporting the results
+A CLI Tool for Querying Logstash and Exporting the results. Uses the Lucene query syntax that Kibana utilizes, but provides the option for exporting. 
 
 Usage:
 ```
