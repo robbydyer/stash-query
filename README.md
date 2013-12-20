@@ -17,3 +17,7 @@ Usage:
     -t, --tags [TAGS]                Tags to query. Comma delimited
 ```
 
+Examples:
+```
+stash-query -s 2013-12-01T00:00:00.000Z -e 2013-12-02T00:00:00.000Z -t my_tag -q 'my favorite query' -w /tmp/my_query.txt
+```
