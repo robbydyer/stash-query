@@ -98,7 +98,6 @@ OptionParser.new do |opts|
     opts.on('-p','--port [PORT]', "Logstash port (defaults to: #{$config[:port]})") { |v| $config[:port] = v unless v.empty? or v.nil? }
     opts.on('-i','--index-prefix [PREFIX]', "Index name prefix. Defaults to 'logstash-'") { |v| $config[:index_prefix] = v unless v.empty? or v.nil? }
     opts.on('-w', '--write [FILE]', 'Write output file location (defaults to nil)') { |v| $config[:output] = v }
-    opts.on('-r', '--report', 'Generate Asr/Tts report on CDR data') { |v| $config[:report] = true }
     opts.on('-d', '--debug', 'Debug mode') { |v| $debug = true }
 
     opts.on('-s', '--start [DATE]', 'Start date. Format: YYYY-MM-DDThh:mm:ss.SSSZ. Ex: 2013-12-01T12:00:00.000Z') do |v| 
