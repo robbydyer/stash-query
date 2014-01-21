@@ -118,6 +118,7 @@ query = query + "#{$config[:query]} AND " if $config[:query]
 query = query + "#{time_range}"
 
 
+indexes = Array.new
 if $config[:start] and $config[:end]
     start_str = $config[:start].split('T').first.split('-').join('.')
     s_year = start_str.split('.').first.to_i
@@ -131,7 +132,6 @@ if $config[:start] and $config[:end]
     e_day = end_str.split('.').last.to_i
     end_date = Date.new(e_year, e_mo, e_day)
 
-    indexes = Array.new
     (start_date..end_date).map do |day| 
         day = day.strftime('%Y.%m.%d')
         puts "DAY: #{day}" if $debug
