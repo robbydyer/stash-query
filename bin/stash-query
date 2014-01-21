@@ -115,7 +115,7 @@ time_range = "@timestamp:[#{$config[:start]} TO #{$config[:end]}]"
 query = ''
 query = "#{$config[:tags]} AND " if $config[:tags]
 query = query + "#{$config[:query]} AND " if $config[:query] 
-query = query + "#{time_range}"
+query = query + "#{time_range}" if $config[:start] and $config[:end]
 
 
 indexes = Array.new
