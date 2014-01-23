@@ -112,10 +112,11 @@ rescue
 end
 
 time_range = "@timestamp:[#{$config[:start]} TO #{$config[:end]}]"
-query = ''
-query = "#{$config[:tags]} AND " if $config[:tags]
-query = query + "#{$config[:query]} AND " if $config[:query] 
-query = query + "#{time_range}" if $config[:start] and $config[:end]
+queries = Array.new
+queries << "#{$config[:tags]}" if $config[:tags]
+queries << "#{$config[:query]}" if $config[:query] 
+queries << "#{time_range}" if $config[:start] and $config[:end]
+query = queries.join(' AND ')
 
 
 indexes = Array.new

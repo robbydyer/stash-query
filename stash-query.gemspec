@@ -1,6 +1,6 @@
 Gem::Specification.new do |s|
   s.name        = 'stash-query'
-  s.version     = '0.0.1'
+  s.version     = '0.0.2'
   s.date        = '2013-12-05'
   s.summary     = "Gem for querying Logstash and exporting the results"
   s.authors     = ["Robby Dyer"]
