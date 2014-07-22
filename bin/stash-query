@@ -17,58 +17,58 @@ $new_transport = true
 ##################################
 
 OptionParser.new do |opts|
-    opts.banner = "Usage: "
-    opts.on('-c','--connect_host [HOST]', "Logstash host to run query on (defaults to: #{$config[:host]})") { |v| $config[:host] = v unless v.empty? or v.nil? }
-    opts.on('-p','--port [PORT]', "Logstash port (defaults to: #{$config[:port]})") { |v| $config[:port] = v unless v.empty? or v.nil? }
-    opts.on('-i','--index-prefix [PREFIX]', "Index name prefix. Defaults to 'logstash-'") { |v| $config[:index_prefix] = v unless v.empty? or v.nil? }
-    opts.on('-w', '--write [FILE]', 'Write output file location (defaults to nil)') { |v| $config[:output] = v }
-    opts.on('-d', '--debug', 'Debug mode') { |v| $debug = true }
+  opts.banner = "Usage: "
+  opts.on('-c','--connect_host [HOST]', "Logstash host to run query on (defaults to: #{$config[:host]})") { |v| $config[:host] = v unless v.empty? or v.nil? }
+  opts.on('-p','--port [PORT]', "Logstash port (defaults to: #{$config[:port]})") { |v| $config[:port] = v unless v.empty? or v.nil? }
+  opts.on('-i','--index-prefix [PREFIX]', "Index name prefix. Defaults to 'logstash-'") { |v| $config[:index_prefix] = v unless v.empty? or v.nil? }
+  opts.on('-w', '--write [FILE]', 'Write output file location (defaults to nil)') { |v| $config[:output] = v }
+  opts.on('-d', '--debug', 'Debug mode') { |v| $debug = true }
 
-    opts.on('-s', '--start [DATE]', 'Start date. Format: YYYY-MM-DDThh:mm:ss.SSSZ. Ex: 2013-12-01T12:00:00.000Z') do |v| 
-        if validate_date(v)
-            $config[:start] = v
-        else
-            puts "Incorrect timestamp format for start date"
-            exit
-        end
+  opts.on('-s', '--start [DATE]', 'Start date. Format: YYYY-MM-DDThh:mm:ss.SSSZ. Ex: 2013-12-01T12:00:00.000Z') do |v| 
+    if validate_date(v)
+      $config[:start] = v
+    else
+      puts "Incorrect timestamp format for start date"
+      exit
     end
+  end
 
-    opts.on('-e', '--end [DATE]', 'End date. Format: YYYY-MM-DDThh:mm:ss.SSSZ') do |v| 
-        if validate_date(v)
-            $config[:end] = v
-        else
-            puts "Incorrect timestamp format for end date"
-            exit
-        end
+  opts.on('-e', '--end [DATE]', 'End date. Format: YYYY-MM-DDThh:mm:ss.SSSZ') do |v| 
+    if validate_date(v)
+      $config[:end] = v
+    else
+      puts "Incorrect timestamp format for end date"
+      exit
     end
+  end
 
-    opts.on('-q', '--query [QUERY]', 'Query string') { |v| $config[:query] = "#{v}" unless v.empty? }
-    opts.on('-t', '--tags [TAGS]', 'Tags to query. Comma delimited')  do |tags|  
-        arr = tags.split(',')
-        if arr.length > 1
-            $config[:tags] = "tags:(" + arr.join(' AND ') + ")"
-        else
-            $config[:tags] = "tags:#{tags}"
-        end
+  opts.on('-q', '--query [QUERY]', 'Query string') { |v| $config[:query] = "#{v}" unless v.empty? }
+  opts.on('-t', '--tags [TAGS]', 'Tags to query. Comma delimited')  do |tags|  
+    arr = tags.split(',')
+    if arr.length > 1
+      $config[:tags] = "tags:(" + arr.join(' AND ') + ")"
+    else
+      $config[:tags] = "tags:#{tags}"
     end
-    opts.parse!
+  end
+  opts.parse!
 end
 
 es_conf = {
-    :query => $config[:query],
-    :tags => $config[:tags],
-    :start_date => $config[:start],
-    :end_date => $config[:end],
-    :output_file => $config[:output],
-    :host => $config[:host],
-    :port => $config[:port],
-    :index_prefixes => [ "logstash-", "logstash-cdr-", "logstash-haproxy-" ],
-    :do_print => true
+  :query => $config[:query],
+  :tags => $config[:tags],
+  :start_date => $config[:start],
+  :end_date => $config[:end],
+  :output_file => $config[:output],
+  :host => $config[:host],
+  :port => $config[:port],
+  :index_prefixes => [ "logstash-", "logstash-cdr-", "logstash-haproxy-" ],
+  :do_print => true
 }
 es = StashQuery.new(es_conf)
 
 exit if es.num_results < 1
 
 until es.query_finished do
-    sleep 2
+  sleep 2
 end
