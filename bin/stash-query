@@ -54,7 +54,20 @@ OptionParser.new do |opts|
     opts.parse!
 end
 
-es = StashQuery.new("#{$config[:query]} AND #{$config[:tags]}", $config[:start], $config[:end], $config[:output], { :host => $config[:host], :port => $config[:port], :index_prefix => $config[:index_prefix]}, :progress => true)
+es_conf = {
+    :query => $config[:query],
+    :tags => $config[:tags],
+    :start_date => $config[:start],
+    :end_date => $config[:end],
+    :output_file => $config[:output],
+    :host => $config[:host],
+    :port => $config[:port],
+    :index_prefixes => [ "logstash-", "logstash-cdr-", "logstash-haproxy-" ],
+    :do_print => true
+}
+es = StashQuery.new(es_conf)
+
+exit if es.num_results < 1
 
 until es.query_finished do
     sleep 2
