@@ -10,6 +10,8 @@ $config[:index_prefix] = "logstash-"
 $config[:scroll_size] = 10  ## Number of hits returned per scroll request. Not sure what to use here...
 $config[:scroll_time] = '30m'   
 $config[:report] = nil
+$config[:write_fields] = []
+$config[:delim] = ','
 $debug = nil
 $flush_buffer = 1000 ## Number of log lines to flush to file at
 $new_transport = true
@@ -25,7 +27,7 @@ OptionParser.new do |opts|
   opts.on('-d', '--debug', 'Debug mode') { |v| $debug = true }
 
   opts.on('-s', '--start [DATE]', 'Start date. Format: YYYY-MM-DDThh:mm:ss.SSSZ. Ex: 2013-12-01T12:00:00.000Z') do |v| 
-    if validate_date(v)
+    if Stashquery::validate_date(v)
       $config[:start] = v
     else
       puts "Incorrect timestamp format for start date"
@@ -34,7 +36,7 @@ OptionParser.new do |opts|
   end
 
   opts.on('-e', '--end [DATE]', 'End date. Format: YYYY-MM-DDThh:mm:ss.SSSZ') do |v| 
-    if validate_date(v)
+    if Stashquery::validate_date(v)
       $config[:end] = v
     else
       puts "Incorrect timestamp format for end date"
@@ -51,6 +53,12 @@ OptionParser.new do |opts|
       $config[:tags] = "tags:#{tags}"
     end
   end
+  opts.on('-f', '--write-fields [FIELDS]', 'Comma delimited list of Logstash fields to write to output file. Defaults to "message"') do |fields|
+   $config[:write_fields] = fields.split(',')
+  end
+  opts.on('-l', '--delimiter [DELIMITER]', 'Delimiter to use in output file. Defaults to ","') do |v|
+    $config[:delim] = v
+  end
   opts.parse!
 end
 
@@ -63,9 +71,11 @@ es_conf = {
   :host => $config[:host],
   :port => $config[:port],
   :index_prefixes => [ "logstash-", "logstash-cdr-", "logstash-haproxy-" ],
+  :write_fields => $config[:write_fields],
+  :delimiter => $config[:delim],
   :do_print => true
 }
-es = StashQuery.new(es_conf)
+es = Stashquery.new(es_conf)
 
 exit if es.num_results < 1
 

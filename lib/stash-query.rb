@@ -7,8 +7,9 @@ require 'optparse'
 require 'curb'
 require 'progress_bar'
 
-class Esquery
+class Stashquery
 
+  DEFAULT_FIELD = "message"
   $debug = nil
   $flush_buffer = 1000 ## Number of log lines to flush to file at
   $new_transport = true
@@ -34,6 +35,9 @@ class Esquery
     @tags = conf[:tags] || nil
     @start_date = conf[:start_date]
     @end_date = conf[:end_date]
+    @config[:write_fields] = []
+    set_write_fields(conf[:write_fields])
+    @config[:delimiter] = conf[:delimiter] || ','
     @num_results = 0
     @query_finished = false
     @scroll_ids = Array.new
@@ -44,7 +48,7 @@ class Esquery
     end
 
     ## Do this better
-    unless validate_date(@start_date) and validate_date(@end_date)
+    unless Stashquery::validate_date(@start_date) and Stashquery::validate_date(@end_date)
       raise "Improper date format entered"
     end
 
@@ -59,6 +63,11 @@ class Esquery
     @es_conn = connect_to_es
     run_query
     sort_file
+  end
+
+  def self.validate_date(str)
+    return true if str =~ /20[0-9]{2}-(0[1-9]|1[012])-(0[1-9]|[12][0-9]|3[01])T[012][0-9]:[0-5][0-9]:[0-5][0-9]\.[0-9]{3}Z/
+    return nil
   end
 
   private
@@ -76,17 +85,45 @@ class Esquery
     return if @config[:output].nil?
     File.open(@config[:output], 'a') do |file|
       begin
-        file.puts(hit_list)
-      rescue
-        puts "Could not open output file (#{@config[:output]}) for writing!"
+        file.puts(generate_output(hit_list))
+      rescue => e
+        puts "Error writing to file."
+        raise e
         exit
       end
     end
   end
 
-  def validate_date(str)
-    return true if str =~ /20[0-9]{2}-(0[1-9]|1[012])-(0[1-9]|[12][0-9]|3[01])T[012][0-9]:[0-5][0-9]:[0-5][0-9]\.[0-9]{3}Z/
-    return nil
+  def set_write_fields(fields)
+    if fields.is_a? Array
+      if fields.empty?
+        @config[:write_fields] << DEFAULT_FIELD
+      else
+        @config[:write_fields] = fields
+      end
+    elsif fields.is_a? String
+      @config[:write_fields] = [ fields ]
+    else
+      @config[:write_fields] = [ DEFAULT_FIELD ]
+    end
+  end
+
+  def generate_output(hit_list)
+    output_data = []
+    hit_list.each do |event|
+      event_data = []
+      if @config[:write_fields].include?('_all')
+        event['_source'].keys.each do |field|
+          event_data << "#{event['_source'][field]}".gsub("\n", '')
+        end
+      else
+        @config[:write_fields].each do |field|
+          event_data << "#{event['_source'][field] if event['_source'][field]}".gsub("\n", '')
+        end
+      end
+      output_data << event_data.join(@config[:delimiter])
+    end
+    output_data
   end
 
   def connect_to_es
@@ -184,7 +221,7 @@ class Esquery
       while true
         res['hits']['hits'].each do |hit|
           bar.increment! if @config[:print]
-          hit_list << hit['_source']['message'].gsub(/^<[0-9]+>/, '').gsub("\n", '')
+          hit_list << hit
           if hit_list.length % $flush_buffer == 0
             flush_to_file hit_list.join("\n")
             hit_list = Array.new
