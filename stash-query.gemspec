@@ -1,3 +1,6 @@
+$:.push File.expand_path("../lib", __FILE__)
+require 'stash-query/version'
+
 Gem::Specification.new do |s|
   s.name        = 'stash-query'
   s.version     = '0.1.0'
