@@ -1,11 +1,6 @@
 #!/usr/bin/env ruby
 
-require 'elasticsearch'
-require 'json'
-require 'date'
-require 'optparse'
-require 'progress_bar'
-require 'curb'
+require 'stash-query'
 
 ############ CONFIG ###########
 $config = {}
@@ -20,28 +15,6 @@ $flush_buffer = 1000 ## Number of log lines to flush to file at
 $new_transport = true
 
 ##################################
-
-def flush_to_file(hit_list)
-    File.open($config[:output], 'a') do |file|
-        begin
-            file.puts(hit_list)
-        rescue
-            puts "Could not open output file (#{$config[:output]}) for writing!"
-            exit
-        end
-    end
-end
-
-def validate_date(str)
-    return true if str =~ /20[0-9]{2}-(0[1-9]|1[012])-(0[1-9]|[12][0-9]|3[01])T[012][0-9]:[0-5][0-9]:[0-5][0-9]\.[0-9]{3}Z/
-    return nil
-end
-
-## Prints numbers with commas
-def print_num(min)
-    min.to_s.reverse.gsub(/(\d{3})(?=\d)/, '\\1,').reverse
-end
-
 
 OptionParser.new do |opts|
     opts.banner = "Usage: "
@@ -81,150 +54,8 @@ OptionParser.new do |opts|
     opts.parse!
 end
 
-## Cleanup output file. Probably a better way to do this.
-begin
-    File.truncate($config[:output],0)
-rescue
+es = StashQuery.new("#{$config[:query]} AND #{$config[:tags]}", $config[:start], $config[:end], $config[:output], { :host => $config[:host], :port => $config[:port], :index_prefix => $config[:index_prefix]}, :progress => true)
+
+until es.query_finished do
+    sleep 2
 end
-
-## Try a different transporter
-if $new_transport
-    require 'typhoeus'
-    require 'typhoeus/adapters/faraday'
-
-    transport_conf = lambda do |f|
-        #f.response :logger
-        f.adapter :typhoeus
-    end
-end
-
-## Connect to ES server
-begin
-    if $new_transport
-        transport = Elasticsearch::Transport::Transport::HTTP::Faraday.new hosts: [ { host: $config[:host], port: $config[:port] }], &transport_conf
-        es = Elasticsearch::Client.new transport: transport
-    else
-        es = Elasticsearch::Client.new(:host => $config[:host], :port => $config[:port])
-    end
-rescue
-    puts "Could not connect to Elasticsearch cluster: #{$config[:host]}:#{$config[:port]}"
-    exit
-end
-
-time_range = "@timestamp:[#{$config[:start]} TO #{$config[:end]}]"
-queries = Array.new
-queries << "#{$config[:tags]}" if $config[:tags]
-queries << "#{$config[:query]}" if $config[:query] 
-queries << "#{time_range}" if $config[:start] and $config[:end]
-query = queries.join(' AND ')
-
-
-indexes = Array.new
-if $config[:start] and $config[:end]
-    start_str = $config[:start].split('T').first.split('-').join('.')
-    s_year = start_str.split('.').first.to_i
-    s_mo = start_str.split('.')[1].to_i
-    s_day = start_str.split('.').last.to_i
-    start_date = Date.new(s_year, s_mo, s_day)
-
-    end_str = $config[:end].split('T').first.split('-').join('.')
-    e_year = end_str.split('.').first.to_i
-    e_mo = end_str.split('.')[1].to_i
-    e_day = end_str.split('.').last.to_i
-    end_date = Date.new(e_year, e_mo, e_day)
-
-    (start_date..end_date).map do |day| 
-        day = day.strftime('%Y.%m.%d')
-        puts "DAY: #{day}" if $debug
-        indexes << "#{$config[:index_prefix]}#{day}"
-    end
-else
-    puts "You have not specified a start and/or end timestamp for your query"
-    puts "I will default to search all existing indices. This will cause"
-    puts "the query to be extremely slow. Shall I continue? (y/n) "
-    ans = gets 
-    exit unless ans.downcase =~ /y/
-    indexes << '_all'
-end
-
-## Make sure each index exists
-good_indexes = Array.new
-unless indexes.include?('_all')
-    indexes.each do |index|
-        good_indexes << index if es.indices.exists index: index
-    end
-    indexes = good_indexes
-else
-    indexes = [ '_all' ]
-end
-
-
-puts "Using these indices: #{indexes.join(',')}" if $debug
-
-# Get scroll ID
-puts "Running this query:"
-puts "    #{query}"
-index_str = indexes.join(',')
-res = es.search index: index_str, q: query, search_type: 'scan', scroll: $config[:scroll_time], size: $config[:scroll_size], df: 'message'
-scroll_id = res['_scroll_id']
-
-scroll_ids = Array.new
-scroll_ids << res['_scroll_id']
-puts "Your query returns #{res['hits']['total']} results"
-puts
-
-puts res.inspect if $debug and res['hits']['total'] > 300000
-
-if $config[:output]
-    puts "Writing messages to file #{$config[:output]}..."
-    bar = ProgressBar.new(res['hits']['total'])
-    hit_list = ''
-    total_lines = 0 if $debug
-    while true
-        res['hits']['hits'].each do |hit|
-            hit_list += hit['_source']['message']
-            if hit_list.lines.count % $flush_buffer == 0
-                flush_to_file hit_list
-                hit_list = ''
-            end
-        end
-
-        bar.increment! res['hits']['hits'].length
-        total_lines += res['hits']['hits'].length if $debug
-
-        # Continue scroll through data
-        begin
-            res = es.scroll scroll: $config[:scroll_time], body: scroll_id
-            scroll_id = res['_scroll_id']
-            scroll_ids << res['_scroll_id']
-        rescue => e
-            puts "EXCEPTION"
-            puts res.inspect
-            raise e
-        end
-
-        begin
-            break if res['hits']['hits'].length < 1
-        rescue => e
-            puts "RESULT TYPE: #{res.class}"
-            puts res.inspect
-            raise e
-        end
-    end
-
-    flush_to_file hit_list
-
-    ## Delete the scroll_ids to free up resources on the ES cluster
-    ## Have to use direct API call until elasticsearch-ruby supports this
-    scroll_ids.uniq.each do |scroll|
-        puts "DELETE SCROLL:#{scroll}" if $debug
-        puts
-        begin
-            Curl.delete("#{$config[:host]}:#{$config[:port]}/_search/scroll/#{scroll}")
-        rescue
-            puts "Delete failed" if $debug
-        end
-    end
-end
-
-
