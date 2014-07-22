@@ -5,7 +5,6 @@ A CLI Tool for Querying Logstash and Exporting the results. Uses the Lucene quer
 
 Usage:
 ```
-Usage:
     -c, --connect_host [HOST]        Logstash host to run query on (defaults to: localhost)
     -p, --port [PORT]                Logstash port (defaults to: 9200)
     -i, --index-prefix [PREFIX]      Index name prefix. Defaults to 'logstash-'
@@ -15,6 +14,8 @@ Usage:
     -e, --end [DATE]                 End date. Format: YYYY-MM-DDThh:mm:ss.SSSZ
     -q, --query [QUERY]              Query string
     -t, --tags [TAGS]                Tags to query. Comma delimited
+    -f, --write-fields [FIELDS]      Comma delimited list of Logstash fields to write to output file. Defaults to "message"
+    -l, --delimiter [DELIMITER]      Delimiter to use in output file. Defaults to ","
 ```
 
 Examples:
