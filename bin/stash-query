@@ -6,7 +6,7 @@ require 'stash-query'
 $config = {}
 $config[:host] = "localhost"
 $config[:port] = "9200"
-$config[:index_prefix] = "logstash-"
+$config[:index_prefix] = [ "logstash-" ]
 $config[:scroll_size] = 10  ## Number of hits returned per scroll request. Not sure what to use here...
 $config[:scroll_time] = '30m'   
 $config[:report] = nil
@@ -22,7 +22,9 @@ OptionParser.new do |opts|
   opts.banner = "Usage: "
   opts.on('-c','--connect_host [HOST]', "Logstash host to run query on (defaults to: #{$config[:host]})") { |v| $config[:host] = v unless v.empty? or v.nil? }
   opts.on('-p','--port [PORT]', "Logstash port (defaults to: #{$config[:port]})") { |v| $config[:port] = v unless v.empty? or v.nil? }
-  opts.on('-i','--index-prefix [PREFIX]', "Index name prefix. Defaults to 'logstash-'") { |v| $config[:index_prefix] = v unless v.empty? or v.nil? }
+  opts.on('-i','--index-prefix [PREFIX]', "Index name prefix(es). Defaults to 'logstash-'. Comma delimited") do |prefix|
+    $config[:index_prefix] = prefix.split(',') unless prefix.empty? or prefix.nil?
+  end
   opts.on('-w', '--write [FILE]', 'Write output file location (defaults to nil)') { |v| $config[:output] = v }
   opts.on('-d', '--debug', 'Debug mode') { |v| $debug = true }
 
@@ -60,7 +62,7 @@ es_conf = {
   :output_file => $config[:output],
   :host => $config[:host],
   :port => $config[:port],
-  :index_prefixes => [ "logstash-", "logstash-cdr-", "logstash-haproxy-" ],
+  :index_prefixes => $config[:index_prefix],
   :write_fields => $config[:write_fields],
   :delimiter => $config[:delim],
   :do_print => true
