@@ -85,6 +85,9 @@ module Stashquery
 
   def flush_to_file(hit_list)
     return if @config[:output].nil?
+    if hit_list.is_a? String
+        hit_list = hit_list.split("\n")
+    end
     File.open(@config[:output], 'a') do |file|
       begin
         file.puts(generate_output(hit_list))
@@ -225,7 +228,7 @@ module Stashquery
           bar.increment! if @config[:print]
           hit_list << hit
           if hit_list.length % $flush_buffer == 0
-            flush_to_file hit_list.join("\n")
+            flush_to_file hit_list
             hit_list = Array.new
           end
         end
