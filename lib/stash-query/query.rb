@@ -219,7 +219,7 @@ module Stashquery
 
     puts res.inspect if $debug
 
-    if @config[:output]
+    if @config[:output] && @num_results > 0
       bar = ProgressBar.new(@num_results) if @config[:print]
       hit_list = Array.new
       total_lines = 0 if $debug
