@@ -21,8 +21,8 @@ $new_transport = true
 
 OptionParser.new do |opts|
   opts.banner = "Usage: "
-  opts.on('-c','--connect_host [HOST]', "Logstash host to run query on (defaults to: #{$config[:host]})") { |v| $config[:host] = v unless v.empty? or v.nil? }
-  opts.on('-p','--port [PORT]', "Logstash port (defaults to: #{$config[:port]})") { |v| $config[:port] = v unless v.empty? or v.nil? }
+  opts.on('-c','--connect_host [HOST]', "Elasticsearch host to run query on (defaults to: #{$config[:host]})") { |v| $config[:host] = v unless v.empty? or v.nil? }
+  opts.on('-p','--port [PORT]', "Elasticsearch port (defaults to: #{$config[:port]})") { |v| $config[:port] = v unless v.empty? or v.nil? }
   opts.on('-i','--index-prefix [PREFIX]', "Index name prefix(es). Defaults to 'logstash-'. Comma delimited") do |prefix|
     $config[:index_prefix] = prefix.split(',') unless prefix.empty? or prefix.nil?
   end
