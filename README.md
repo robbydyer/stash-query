@@ -1,12 +1,12 @@
 stash-query
 ===========
 
-A CLI Tool for Querying Logstash and Exporting the results. Uses the Lucene query syntax that Kibana utilizes, but provides the option for exporting. 
+A CLI Tool for Querying Logstash/Elasticsearch and Exporting the results. Uses the Lucene query syntax that Kibana utilizes, but provides the option for exporting. 
 
 Usage:
 ```
-    -c, --connect_host [HOST]        Logstash host to run query on (defaults to: localhost)
-    -p, --port [PORT]                Logstash port (defaults to: 9200)
+    -c, --connect_host [HOST]        Elasticsearch host to run query on (defaults to: localhost)
+    -p, --port [PORT]                Elasticsearch port (defaults to: 9200)
     -i, --index-prefix [PREFIX]      Index name prefix. Defaults to 'logstash-'
     -w, --write [FILE]               Write output file location (defaults to nil)
     -d, --debug                      Debug mode
