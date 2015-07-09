@@ -25,6 +25,7 @@ module Stashquery
     @config = {}
     @config[:host] = conf[:host] || "ls2-es-lb.int.tropo.com"
     @config[:port] = conf[:port] || "9200"
+    @config[:timefield] = conf[:timefield] || "@timestamp"
     if conf[:index_prefixes].is_a? Array and ! conf[:index_prefixes].empty?
       @config[:index_prefixes] = conf[:index_prefixes]
     else
@@ -61,7 +62,6 @@ module Stashquery
       rescue
       end
     end
-
     @es_conn = connect_to_es
     run_query
     sort_file
@@ -187,7 +187,7 @@ module Stashquery
     queries << @tags if @tags
 
     if @start_date and @end_date
-      time_range = "@timestamp:[#{@start_date} TO #{@end_date}]"
+      time_range = "#{@config[:timefield]}:[#{@start_date} TO #{@end_date}]"
       queries << "#{time_range}"
       indexes = get_indices
     else
