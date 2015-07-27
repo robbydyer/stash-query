@@ -7,9 +7,10 @@ require 'stash-query'
 $config = {}
 $config[:host] = "localhost"
 $config[:port] = "9200"
+$config[:timefield] = "@timestamp"
 $config[:index_prefix] = [ "logstash-" ]
 $config[:scroll_size] = 10  ## Number of hits returned per scroll request. Not sure what to use here...
-$config[:scroll_time] = '30m'   
+$config[:scroll_time] = '30m'
 $config[:report] = nil
 $config[:write_fields] = []
 $config[:delim] = ','
@@ -23,22 +24,23 @@ OptionParser.new do |opts|
   opts.banner = "Usage: "
   opts.on('-c','--connect_host [HOST]', "Elasticsearch host to run query on (defaults to: #{$config[:host]})") { |v| $config[:host] = v unless v.empty? or v.nil? }
   opts.on('-p','--port [PORT]', "Elasticsearch port (defaults to: #{$config[:port]})") { |v| $config[:port] = v unless v.empty? or v.nil? }
+  opts.on('-T','--timefield [FIELDNAME]', "Time-field name (defaults to: #{$config[:timefield]})") { |v| $config[:timefield] = v unless v.empty? or v.nil? }
   opts.on('-i','--index-prefix [PREFIX]', "Index name prefix(es). Defaults to 'logstash-'. Comma delimited") do |prefix|
     $config[:index_prefix] = prefix.split(',') unless prefix.empty? or prefix.nil?
   end
   opts.on('-w', '--write [FILE]', 'Write output file location (defaults to nil)') { |v| $config[:output] = v }
   opts.on('-d', '--debug', 'Debug mode') { |v| $debug = true }
 
-  opts.on('-s', '--start [DATE]', 'Start date. Format: YYYY-MM-DDThh:mm:ss.SSSZ. Ex: 2013-12-01T12:00:00.000Z') do |v| 
+  opts.on('-s', '--start [DATE]', 'Start date. Format: YYYY-MM-DDThh:mm:ss.SSSZ. Ex: 2013-12-01T12:00:00.000Z') do |v|
     $config[:start] = v
   end
 
-  opts.on('-e', '--end [DATE]', 'End date. Format: YYYY-MM-DDThh:mm:ss.SSSZ') do |v| 
+  opts.on('-e', '--end [DATE]', 'End date. Format: YYYY-MM-DDThh:mm:ss.SSSZ') do |v|
     $config[:end] = v
   end
 
   opts.on('-q', '--query [QUERY]', 'Query string') { |v| $config[:query] = "#{v}" unless v.empty? }
-  opts.on('-t', '--tags [TAGS]', 'Tags to query. Comma delimited')  do |tags|  
+  opts.on('-t', '--tags [TAGS]', 'Tags to query. Comma delimited')  do |tags|
     arr = tags.split(',')
     if arr.length > 1
       $config[:tags] = "tags:(" + arr.join(' AND ') + ")"
@@ -63,6 +65,7 @@ es_conf = {
   :output_file => $config[:output],
   :host => $config[:host],
   :port => $config[:port],
+  :timefield => $config[:timefield],
   :index_prefixes => $config[:index_prefix],
   :write_fields => $config[:write_fields],
   :delimiter => $config[:delim],
