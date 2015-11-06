@@ -11,12 +11,14 @@ $config[:timefield] = "@timestamp"
 $config[:index_prefix] = [ "logstash-" ]
 $config[:scroll_size] = 10  ## Number of hits returned per scroll request. Not sure what to use here...
 $config[:scroll_time] = '30m'
-$config[:report] = nil
 $config[:write_fields] = []
-$config[:delim] = ','
-$debug = nil
-$flush_buffer = 1000 ## Number of log lines to flush to file at
-$new_transport = true
+$config[:delimiter] = ','
+$config[:debug] = nil
+$config[:output_file] = nil
+$config[:max_results] = nil
+$config[:print_msgs] = true
+$config[:flush_buffer] = 1000 ## Number of log lines to flush to file at
+$config[:new_transport] = true
 
 ##################################
 
@@ -28,15 +30,15 @@ OptionParser.new do |opts|
   opts.on('-i','--index-prefix [PREFIX]', "Index name prefix(es). Defaults to 'logstash-'. Comma delimited") do |prefix|
     $config[:index_prefix] = prefix.split(',') unless prefix.empty? or prefix.nil?
   end
-  opts.on('-w', '--write [FILE]', 'Write output file location (defaults to nil)') { |v| $config[:output] = v }
-  opts.on('-d', '--debug', 'Debug mode') { |v| $debug = true }
+  opts.on('-w', '--write [FILE]', 'Write output file location (defaults to nil)') { |v| $config[:output_file] = v }
+  opts.on('-d', '--debug', 'Debug mode') { |v| $config[:debug] = true }
 
   opts.on('-s', '--start [DATE]', 'Start date. Format: YYYY-MM-DDThh:mm:ss.SSSZ. Ex: 2013-12-01T12:00:00.000Z') do |v|
-    $config[:start] = v
+    $config[:start_date] = v
   end
 
   opts.on('-e', '--end [DATE]', 'End date. Format: YYYY-MM-DDThh:mm:ss.SSSZ') do |v|
-    $config[:end] = v
+    $config[:end_date] = v
   end
 
   opts.on('-q', '--query [QUERY]', 'Query string') { |v| $config[:query] = "#{v}" unless v.empty? }
@@ -52,26 +54,14 @@ OptionParser.new do |opts|
    $config[:write_fields] = fields.split(',')
   end
   opts.on('-l', '--delimiter [DELIMITER]', 'Delimiter to use in output file. Defaults to ","') do |v|
-    $config[:delim] = v
+    $config[:delimiter] = v
   end
+  opts.on('-S', '--silent', 'Run silently') { |v| $config[:print_msgs] = false }
+  opts.on('-m', '--max [INTEGER]', OptionParser::DecimalInteger, 'Maximum number of results to return. Non-integer arguments default to 0.') { |v| $config[:max_results] = v }
   opts.parse!
 end
 
-es_conf = {
-  :query => $config[:query],
-  :tags => $config[:tags],
-  :start_date => $config[:start],
-  :end_date => $config[:end],
-  :output_file => $config[:output],
-  :host => $config[:host],
-  :port => $config[:port],
-  :timefield => $config[:timefield],
-  :index_prefixes => $config[:index_prefix],
-  :write_fields => $config[:write_fields],
-  :delimiter => $config[:delim],
-  :do_print => true
-}
-es = Stashquery::Query.new(es_conf)
+es = Stashquery::Query.new($config)
 
 exit if es.num_results < 1
 
