@@ -44,8 +44,10 @@ module Stashquery
     @num_results = 0
     @query_finished = false
     @scroll_ids = Array.new
+    @config[:debug] = conf[:debug] || $debug
+    @config[:max_results] = conf[:max_results] || nil
 
-    if conf[:do_print]
+    if conf[:print_msgs]
       @config[:print] = true
       require 'progress_bar'
     end
@@ -183,9 +185,6 @@ module Stashquery
 
   def run_query
     queries = Array.new
-    queries << @query if @query
-    queries << @tags if @tags
-
     if @start_date and @end_date
       time_range = "#{@config[:timefield]}:[#{@start_date} TO #{@end_date}]"
       queries << "#{time_range}"
@@ -193,6 +192,8 @@ module Stashquery
     else
       indexes [ '_all' ]
     end
+    queries << @query if @query
+    queries << @tags if @tags
 
     query = queries.join(' AND ')
 
@@ -207,7 +208,7 @@ module Stashquery
       indexes = [ '_all' ]
     end
 
-    puts "Using these indices: #{indexes.join(',')}" if $debug
+    puts "Using these indices: #{indexes.join(',')}" if @config[:debug]
 
     index_str = indexes.join(',')
     res = @es_conn.search index: index_str, q: query, search_type: 'scan', scroll: @config[:scroll_time], size: @config[:scroll_size], df: 'message'
@@ -215,26 +216,16 @@ module Stashquery
 
     @scroll_ids << res['_scroll_id']
     @num_results = res['hits']['total']
-    puts "Found #{@num_results} results" if @config[:print]
+    puts "Found #{@num_results} results" if @config[:print] or @config[:debug]
 
-    puts res.inspect if $debug
+    puts res.inspect if @config[:debug]
 
-    if @config[:output] && @num_results > 0
+    if @num_results > 0
       bar = ProgressBar.new(@num_results) if @config[:print]
       hit_list = Array.new
-      total_lines = 0 if $debug
+      total_lines = 0 if @config[:debug]
       while true
-        res['hits']['hits'].each do |hit|
-          bar.increment! if @config[:print]
-          hit_list << hit
-          if hit_list.length % $flush_buffer == 0
-            flush_to_file hit_list
-            hit_list = Array.new
-          end
-        end
-        total_lines += res['hits']['hits'].length if $debug
-
-        # Continue scroll through data
+        # Scroll through data
         begin
           res = @es_conn.scroll scroll: @config[:scroll_time], body: scroll_id
           scroll_id = res['_scroll_id']
@@ -249,8 +240,29 @@ module Stashquery
         rescue => e
           raise e
         end
+
+        res['hits']['hits'].each do |hit|
+          bar.increment! if @config[:print]
+          hit_list << hit
+	  if @config[:max_results]
+            # Set break flag
+	    if hit_list.length == @config[:max_results]
+              puts "Hit max result limit: #{@config[:max_results]} records" if @config[:debug]
+	      $break_while_loop = true
+	      break
+	    end
+	  end
+          if hit_list.length % $flush_buffer == 0
+            @config[:output] ? flush_to_file(hit_list) : (puts generate_output(hit_list))
+            hit_list = Array.new
+          end
+        end
+        total_lines += res['hits']['hits'].length if @config[:debug]
+	# Break if break flag set
+	break if $break_while_loop
+
       end
-      flush_to_file hit_list
+      @config[:output] ? flush_to_file(hit_list) : (puts generate_output(hit_list))
     end
 
     @query_finished = true
@@ -261,12 +273,12 @@ module Stashquery
     ## Delete the scroll_ids to free up resources on the ES cluster
     ## Have to use direct API call until elasticsearch-ruby supports this
     @scroll_ids.uniq.each do |scroll|
-      puts "DELETE SCROLL:#{scroll}" if $debug
+      puts "DELETE SCROLL:#{scroll}" if @config[:debug]
       #puts
       begin
         Curl.delete("#{@config[:host]}:#{@config[:port]}/_search/scroll/#{scroll}")
       rescue
-        puts "Delete failed" if $debug
+        puts "Delete failed" if @config[:debug]
       end
     end
   end
