@@ -29,3 +29,12 @@ Examples:
 ```
 stash-query -s 2013-12-01T00:00:00.000Z -e 2013-12-02T00:00:00.000Z -t my_tag -q 'message:hello_world' -w /tmp/my_query.txt
 ```
+
+#  To install locally
+
+```
+gem build stash-query.gemspec
+ 
+gem install stash-query-<version>.gem
+```
+
