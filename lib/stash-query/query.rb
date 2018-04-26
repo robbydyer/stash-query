@@ -25,6 +25,7 @@ module Stashquery
     @config = {}
     @config[:host] = conf[:host] || "ls2-es-lb.int.tropo.com"
     @config[:port] = conf[:port] || "9200"
+    @config[:scheme] = conf[:scheme] || "http"
     @config[:timefield] = conf[:timefield] || "@timestamp"
     if conf[:index_prefixes].is_a? Array and ! conf[:index_prefixes].empty?
       @config[:index_prefixes] = conf[:index_prefixes]
@@ -148,13 +149,18 @@ module Stashquery
     ## Connect to ES server
     begin
       if $new_transport
-        transport = Elasticsearch::Transport::Transport::HTTP::Faraday.new hosts: [ { host: @config[:host], port: @config[:port] }], &transport_conf
+        transport = Elasticsearch::Transport::Transport::HTTP::Faraday.new hosts: [ { host: @config[:host], port: @config[:port], scheme: @config[:scheme] }], &transport_conf
         es = Elasticsearch::Client.new transport: transport
       else
         es = Elasticsearch::Client.new(:host => @config[:host], :port => @config[:port])
       end
+
     rescue
-      raise "Could not connect to Elasticsearch cluster: #{@config[:host]}:#{@config[:port]}"
+      raise "Could not connect to Elasticsearch cluster: #{@config[:scheme]}://#{@config[:host]}:#{@config[:port]}"
+    end
+
+    if es.cluster.health == ""
+      raise "Could not connect to Elasticsearch cluster: #{@config[:scheme]}://#{@config[:host]}:#{@config[:port]}"
     end
 
     return es
