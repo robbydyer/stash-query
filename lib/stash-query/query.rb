@@ -217,7 +217,7 @@ module Stashquery
     puts "Using these indices: #{indexes.join(',')}" if @config[:debug]
 
     index_str = indexes.join(',')
-    res = @es_conn.search index: index_str, q: query, search_type: 'scan', scroll: @config[:scroll_time], size: @config[:scroll_size], df: 'message'
+    res = @es_conn.search index: index_str, q: query, scroll: @config[:scroll_time], size: @config[:scroll_size], df: 'message'
     scroll_id = res['_scroll_id']
 
     @scroll_ids << res['_scroll_id']
