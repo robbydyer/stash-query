@@ -250,14 +250,14 @@ module Stashquery
         res['hits']['hits'].each do |hit|
           bar.increment! if @config[:print]
           hit_list << hit
-	  if @config[:max_results]
-            # Set break flag
-	    if hit_list.length == @config[:max_results]
+      	  if @config[:max_results]
+                  # Set break flag
+      	    if hit_list.length == @config[:max_results]
               puts "Hit max result limit: #{@config[:max_results]} records" if @config[:debug]
-	      $break_while_loop = true
-	      break
-	    end
-	  end
+      	      $break_while_loop = true
+      	      break
+      	    end
+      	  end
           if hit_list.length % $flush_buffer == 0
             @config[:output] ? flush_to_file(hit_list) : (puts generate_output(hit_list))
             hit_list = Array.new
