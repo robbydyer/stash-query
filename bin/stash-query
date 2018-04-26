@@ -29,6 +29,12 @@ OptionParser.new do |opts|
   opts.on('-p','--port [PORT]', "Elasticsearch port (defaults to: #{$config[:port]})") { |v| $config[:port] = v unless v.empty? or v.nil? }
   opts.on('--ssl', "Elasticsearch port (defaults to no ssl)") { |v| $config[:scheme] = 'https' }
   opts.on('-T','--timefield [FIELDNAME]', "Time-field name (defaults to: #{$config[:timefield]})") { |v| $config[:timefield] = v unless v.empty? or v.nil? }
+  opts.on('--scroll-size [number of records]', "Scroll Size (defaults to: #{$config[:scroll_size]}).") do |v|
+    $config[:scroll_size] = v unless v.empty? or v.nil?
+  end
+  opts.on('--scroll-time [time units]', "Scroll Size (defaults to: #{$config[:scroll_time]}).") do |v|
+    $config[:scroll_time] = v unless v.empty? or v.nil?
+  end
   opts.on('-i','--index-prefix [PREFIX]', "Index name prefix(es). Defaults to 'logstash-'. Comma delimited") do |prefix|
     $config[:index_prefix] = prefix.split(',') unless prefix.empty? or prefix.nil?
   end
