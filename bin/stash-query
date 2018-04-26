@@ -36,7 +36,7 @@ OptionParser.new do |opts|
     $config[:scroll_time] = v unless v.empty? or v.nil?
   end
   opts.on('-i','--index-prefix [PREFIX]', "Index name prefix(es). Defaults to 'logstash-'. Comma delimited") do |prefix|
-    $config[:index_prefix] = prefix.split(',') unless prefix.empty? or prefix.nil?
+    $config[:index_prefixes] = prefix.split(',') unless prefix.empty? or prefix.nil?
   end
   opts.on('-w', '--write [FILE]', 'Write output file location (defaults to nil)') { |v| $config[:output_file] = v }
   opts.on('-d', '--debug', 'Debug mode') { |v| $config[:debug] = true }
