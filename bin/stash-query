@@ -6,6 +6,7 @@ require 'stash-query'
 ############ CONFIG ###########
 $config = {}
 $config[:host] = "localhost"
+$config[:scheme] = "http"
 $config[:port] = "9200"
 $config[:timefield] = "@timestamp"
 $config[:index_prefix] = [ "logstash-" ]
@@ -26,9 +27,16 @@ OptionParser.new do |opts|
   opts.banner = "Usage: "
   opts.on('-c','--connect_host [HOST]', "Elasticsearch host to run query on (defaults to: #{$config[:host]})") { |v| $config[:host] = v unless v.empty? or v.nil? }
   opts.on('-p','--port [PORT]', "Elasticsearch port (defaults to: #{$config[:port]})") { |v| $config[:port] = v unless v.empty? or v.nil? }
+  opts.on('--ssl', "Elasticsearch port (defaults to no ssl)") { |v| $config[:scheme] = 'https' }
   opts.on('-T','--timefield [FIELDNAME]', "Time-field name (defaults to: #{$config[:timefield]})") { |v| $config[:timefield] = v unless v.empty? or v.nil? }
+  opts.on('--scroll-size [number of records]', "Scroll Size (defaults to: #{$config[:scroll_size]}).") do |v|
+    $config[:scroll_size] = v unless v.empty? or v.nil?
+  end
+  opts.on('--scroll-time [time units]', "Scroll Size (defaults to: #{$config[:scroll_time]}).") do |v|
+    $config[:scroll_time] = v unless v.empty? or v.nil?
+  end
   opts.on('-i','--index-prefix [PREFIX]', "Index name prefix(es). Defaults to 'logstash-'. Comma delimited") do |prefix|
-    $config[:index_prefix] = prefix.split(',') unless prefix.empty? or prefix.nil?
+    $config[:index_prefixes] = prefix.split(',') unless prefix.empty? or prefix.nil?
   end
   opts.on('-w', '--write [FILE]', 'Write output file location (defaults to nil)') { |v| $config[:output_file] = v }
   opts.on('-d', '--debug', 'Debug mode') { |v| $config[:debug] = true }

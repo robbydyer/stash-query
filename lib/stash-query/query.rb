@@ -25,6 +25,7 @@ module Stashquery
     @config = {}
     @config[:host] = conf[:host] || "ls2-es-lb.int.tropo.com"
     @config[:port] = conf[:port] || "9200"
+    @config[:scheme] = conf[:scheme] || "http"
     @config[:timefield] = conf[:timefield] || "@timestamp"
     if conf[:index_prefixes].is_a? Array and ! conf[:index_prefixes].empty?
       @config[:index_prefixes] = conf[:index_prefixes]
@@ -148,13 +149,18 @@ module Stashquery
     ## Connect to ES server
     begin
       if $new_transport
-        transport = Elasticsearch::Transport::Transport::HTTP::Faraday.new hosts: [ { host: @config[:host], port: @config[:port] }], &transport_conf
+        transport = Elasticsearch::Transport::Transport::HTTP::Faraday.new hosts: [ { host: @config[:host], port: @config[:port], scheme: @config[:scheme] }], &transport_conf
         es = Elasticsearch::Client.new transport: transport
       else
         es = Elasticsearch::Client.new(:host => @config[:host], :port => @config[:port])
       end
+
     rescue
-      raise "Could not connect to Elasticsearch cluster: #{@config[:host]}:#{@config[:port]}"
+      raise "Could not connect to Elasticsearch cluster: #{@config[:scheme]}://#{@config[:host]}:#{@config[:port]}"
+    end
+
+    if es.cluster.health == ""
+      raise "Could not connect to Elasticsearch cluster: #{@config[:scheme]}://#{@config[:host]}:#{@config[:port]}"
     end
 
     return es
@@ -211,7 +217,7 @@ module Stashquery
     puts "Using these indices: #{indexes.join(',')}" if @config[:debug]
 
     index_str = indexes.join(',')
-    res = @es_conn.search index: index_str, q: query, search_type: 'scan', scroll: @config[:scroll_time], size: @config[:scroll_size], df: 'message'
+    res = @es_conn.search index: index_str, q: query, scroll: @config[:scroll_time], size: @config[:scroll_size], df: 'message'
     scroll_id = res['_scroll_id']
 
     @scroll_ids << res['_scroll_id']
@@ -244,14 +250,14 @@ module Stashquery
         res['hits']['hits'].each do |hit|
           bar.increment! if @config[:print]
           hit_list << hit
-	  if @config[:max_results]
-            # Set break flag
-	    if hit_list.length == @config[:max_results]
+      	  if @config[:max_results]
+                  # Set break flag
+      	    if hit_list.length == @config[:max_results]
               puts "Hit max result limit: #{@config[:max_results]} records" if @config[:debug]
-	      $break_while_loop = true
-	      break
-	    end
-	  end
+      	      $break_while_loop = true
+      	      break
+      	    end
+      	  end
           if hit_list.length % $flush_buffer == 0
             @config[:output] ? flush_to_file(hit_list) : (puts generate_output(hit_list))
             hit_list = Array.new
